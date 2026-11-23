@@ -1,0 +1,19 @@
+{
+  "name": "wiresize-matrix",
+  "version": "1.0.0",
+  "description": "WireSizeMatrix — 241-Page High-Volume Programmatic NEC Wire Gauge, Subpanel, EV Charger, Conduit Fill & Voltage Drop Matrix",
+  "scripts": {
+    "seed": "node src/seed-nec-data.js",
+    "build": "node src/build.js",
+    "serve": "npx -y serve dist -l 4175",
+    "deploy": "node src/build.js && npx -y wrangler deploy"
+  },
+  "keywords": [
+    "nec-wire-size-calculator",
+    "voltage-drop-calculator",
+    "conduit-fill-chart",
+    "subpanel-wire-gauge",
+    "ev-charger-wire-size"
+  ],
+  "license": "MIT"
+}
