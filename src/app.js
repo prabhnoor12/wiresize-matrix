@@ -721,11 +721,179 @@
     }, 1000);
   }
 
+  // =========================================================================
+  // 6. SAVED PROJECT BINDER, SUBPANEL LOAD ADDER & PERMIT SHOPPING CHECKLIST
+  // =========================================================================
+  function initRetentionSuite() {
+    // A. Multi-Circuit Subpanel Load Adder
+    const adderRoot = document.getElementById('subpanel-load-adder');
+    const stackList = document.getElementById('adder-stack-list');
+    const adderSummary = document.getElementById('adder-summary');
+    const inputAmps = document.getElementById('input-amps');
+    if (adderRoot && stackList && inputAmps) {
+      let stack = [];
+      const renderStack = () => {
+        stackList.innerHTML = stack
+          .map((item, idx) => `<span class="stack-pill">${item.name} (${item.amps}A) <button type="button" data-rm="${idx}" aria-label="Remove">×</button></span>`)
+          .join('');
+        const totalAmps = stack.reduce((s, x) => s + x.amps, 0);
+        if (adderSummary) {
+          adderSummary.textContent = totalAmps > 0
+            ? `Stacked Load: ${totalAmps}A (${stack.length} circuits) → Synced to NEC Calculator Above`
+            : 'Stacked Load: 0A (Click any circuit above to stack)';
+        }
+        if (totalAmps > 0) {
+          inputAmps.value = String(Math.min(250, Math.max(15, Math.ceil(totalAmps / 5) * 5)));
+          inputAmps.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      };
+      adderRoot.querySelectorAll('.adder-chip[data-load-amps]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          stack.push({ name: btn.dataset.loadName, amps: Number(btn.dataset.loadAmps) });
+          renderStack();
+        });
+      });
+      const clearBtn = document.getElementById('btn-clear-stack');
+      if (clearBtn) clearBtn.addEventListener('click', () => { stack = []; renderStack(); });
+      stackList.addEventListener('click', (e) => {
+        const rm = e.target.closest('button[data-rm]');
+        if (!rm) return;
+        stack.splice(Number(rm.dataset.rm), 1);
+        renderStack();
+      });
+    }
+
+    // B. Interactive Permit-Day Shopping Checklist (localStorage per page)
+    const bomRoot = document.getElementById('wire-bom-checklist');
+    if (bomRoot) {
+      const storageKey = 'wiresize-bom:' + window.location.pathname;
+      const rows = Array.from(bomRoot.querySelectorAll('.bom-row'));
+      const progressTxt = document.getElementById('bom-progress-txt');
+      const totalEl = document.getElementById('bom-grand-total');
+
+      let saved = {};
+      try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch (_) {}
+
+      const syncBom = () => {
+        let checked = 0;
+        let sum = 0;
+        const nextState = {};
+        rows.forEach((row) => {
+          const id = row.dataset.bomId;
+          const chk = row.querySelector('input[type="checkbox"]');
+          const priceInp = row.querySelector('.bom-price-input');
+          const price = Math.max(0, Number(priceInp?.value || 0));
+          sum += price;
+          if (chk?.checked) { checked += 1; row.classList.add('checked'); }
+          else row.classList.remove('checked');
+          nextState[id] = { checked: !!chk?.checked, price };
+        });
+        if (progressTxt) progressTxt.textContent = `${checked} / ${rows.length} Items Checked`;
+        if (totalEl) totalEl.textContent = fmtCurrency.format(sum);
+        try { localStorage.setItem(storageKey, JSON.stringify(nextState)); } catch (_) {}
+      };
+
+      rows.forEach((row) => {
+        const id = row.dataset.bomId;
+        const chk = row.querySelector('input[type="checkbox"]');
+        const priceInp = row.querySelector('.bom-price-input');
+        if (saved[id]) {
+          if (chk) chk.checked = !!saved[id].checked;
+          if (priceInp && typeof saved[id].price === 'number') priceInp.value = String(saved[id].price);
+        }
+        chk?.addEventListener('change', syncBom);
+        priceInp?.addEventListener('input', syncBom);
+      });
+      syncBom();
+    }
+
+    // C. Saved Circuits Project Binder Drawer (localStorage across entire site)
+    const BINDER_KEY = 'wiresize-binder-v1';
+    const drawer = document.getElementById('project-binder-drawer');
+    const backdrop = document.getElementById('binder-backdrop');
+    const openBtn = document.getElementById('btn-open-binder');
+    const closeBtn = document.getElementById('btn-close-binder');
+    const saveBtn = document.getElementById('btn-save-circuit');
+    const countEl = document.getElementById('binder-count');
+    const listEl = document.getElementById('binder-items-list');
+
+    const getBinder = () => {
+      try { return JSON.parse(localStorage.getItem(BINDER_KEY) || '[]'); } catch (_) { return []; }
+    };
+    const setBinder = (items) => {
+      try { localStorage.setItem(BINDER_KEY, JSON.stringify(items)); } catch (_) {}
+    };
+
+    const renderBinder = () => {
+      const items = getBinder();
+      if (countEl) countEl.textContent = String(items.length);
+      if (!listEl) return;
+      if (!items.length) {
+        listEl.innerHTML = '<p style="font-size:0.82rem;color:var(--text-muted);">No saved circuits yet. Click <strong>📌 Save to Project Binder</strong> on any calculator to bookmark your exact wire gauge &amp; distance.</p>';
+        return;
+      }
+      listEl.innerHTML = items.map((it, idx) => `
+        <div class="binder-item">
+          <strong>${it.label}</strong>
+          <div style="font-family:var(--font-mono);margin-block-start:0.25rem;">${it.spec}</div>
+          <div style="font-size:0.74rem;color:var(--text-muted);">${it.date}</div>
+          <div class="binder-item-actions">
+            <a href="${it.url}" class="preset-btn" style="text-decoration:none;">Open Spec →</a>
+            <button type="button" class="preset-btn" data-del-binder="${idx}">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    };
+
+    const openDrawer = () => { drawer?.classList.add('open'); backdrop?.classList.add('open'); renderBinder(); };
+    const closeDrawer = () => { drawer?.classList.remove('open'); backdrop?.classList.remove('open'); };
+
+    openBtn?.addEventListener('click', openDrawer);
+    closeBtn?.addEventListener('click', closeDrawer);
+    backdrop?.addEventListener('click', closeDrawer);
+
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => {
+        const amps = document.getElementById('input-amps')?.value || '50';
+        const dist = document.getElementById('input-distance-ft')?.value || '100';
+        const volt = document.getElementById('input-voltage')?.value || '240';
+        const cu = document.getElementById('out-cu-awg')?.textContent || '';
+        const al = document.getElementById('out-al-awg')?.textContent || '';
+        const defaultName = `${amps}A @ ${dist}ft (${volt}V)`;
+        const label = window.prompt('Name this saved circuit (e.g., Garage Subpanel, EV Charger):', defaultName);
+        if (!label) return;
+        const shareUrl = `${window.location.pathname}?amps=${amps}&dist=${dist}&volt=${volt}`;
+        const items = getBinder();
+        items.unshift({
+          label: label.trim(),
+          spec: `${amps}A • ${dist}ft • ${volt}V → ${cu} / ${al}`,
+          url: shareUrl,
+          date: new Date().toLocaleDateString()
+        });
+        setBinder(items.slice(0, 20));
+        renderBinder();
+        openDrawer();
+      });
+    }
+
+    listEl?.addEventListener('click', (e) => {
+      const del = e.target.closest('button[data-del-binder]');
+      if (!del) return;
+      const items = getBinder();
+      items.splice(Number(del.dataset.delBinder), 1);
+      setBinder(items);
+      renderBinder();
+    });
+
+    renderBinder();
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     initThemeToggle();
     initQuickJumpSearch();
     initNecWireCalculator();
     initSortableTables();
     initAdOpsEngine();
+    initRetentionSuite();
   });
 })();

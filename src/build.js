@@ -125,6 +125,7 @@ function renderInteractiveCalculator({ amps, distFt, voltage, isContinuous = fal
     <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:0.5rem;margin-block-end:0.5rem;">
       <h2 style="border:none;margin:0;padding:0;">Interactive NEC Wire Gauge, Voltage Drop & Conduit Fill Calculator</h2>
       <div style="display:flex;flex-wrap:wrap;gap:0.4rem;">
+        <button type="button" id="btn-save-circuit" class="binder-btn">📌 Save to Project Binder</button>
         <button type="button" id="btn-copy-wire-link" class="preset-btn">Copy Shareable Spec Link</button>
         <button type="button" id="btn-print-worksheet" class="preset-btn">⎙ Print NEC Wiring Sheet</button>
       </div>
@@ -250,6 +251,39 @@ function renderInteractiveCalculator({ amps, distFt, voltage, isContinuous = fal
         <span class="kpi-label">Material Cost Delta</span>
         <span class="kpi-value" id="out-al-savings">$${fmt.format(rec.estCostCu)}</span>
         <span class="kpi-sub">Al: ~$${fmt.format(rec.estCostAl)}</span>
+      </div>
+    </div>
+
+    <div class="subpanel-adder" id="subpanel-load-adder">
+      <h3>⚡ Multi-Circuit Subpanel Load Adder (Stack Circuits to Size Feeder)</h3>
+      <p style="margin:0;font-size:0.8rem;color:var(--text-muted);">Click loads below to add them to your garage/shop subpanel—combined demand amps automatically update the NEC wire gauge calculator above.</p>
+      <div class="adder-chips">
+        <button type="button" class="adder-chip" data-load-name="48A EV Charger" data-load-amps="48">+ 48A EV Charger</button>
+        <button type="button" class="adder-chip" data-load-name="30A Mini-Split" data-load-amps="20">+ 20A Mini-Split</button>
+        <button type="button" class="adder-chip" data-load-name="20A Shop Outlets" data-load-amps="16">+ 16A Shop Outlets</button>
+        <button type="button" class="adder-chip" data-load-name="50A Welder" data-load-amps="35">+ 35A Welder</button>
+        <button type="button" class="adder-chip" data-load-name="15A LED Lights" data-load-amps="8">+ 8A LED Lights</button>
+        <button type="button" class="adder-chip" data-load-name="20A Air Compressor" data-load-amps="15">+ 15A Compressor</button>
+        <button type="button" class="adder-chip" id="btn-clear-stack" style="border-style:dashed;">Clear Stack</button>
+      </div>
+      <div class="adder-stack-list" id="adder-stack-list"></div>
+      <div style="font-family:var(--font-mono);font-size:0.8rem;font-weight:700;" id="adder-summary">Stacked Load: 0A (Click any circuit above to stack)</div>
+    </div>
+
+    <div class="bom-checklist" id="wire-bom-checklist">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-block-end:0.4rem;">
+        <h3 style="margin:0;font-size:0.92rem;">🛒 Interactive Permit-Day Shopping &amp; Materials Checklist (Auto-Saved)</h3>
+        <span style="font-size:0.75rem;font-family:var(--font-mono);color:var(--text-muted);">Edit prices for your local store • Saves in browser</span>
+      </div>
+      <div id="bom-items-wrap">
+        <div class="bom-row" data-bom-id="wire"><input type="checkbox" id="bom-chk-wire"><label for="bom-chk-wire"><strong id="bom-lbl-wire">${distFt} ft of ${rec.recommendedCuAwg} AWG Copper Conductors</strong></label><input class="bom-price-input" type="number" min="0" value="${rec.estCostCu}" aria-label="Wire cost USD"></div>
+        <div class="bom-row" data-bom-id="conduit"><input type="checkbox" id="bom-chk-conduit"><label for="bom-chk-conduit">${Math.ceil(distFt / 10)} × 10-ft Sticks of ${rec.minConduit} Schedule 40 PVC / EMT Conduit</label><input class="bom-price-input" type="number" min="0" value="${Math.ceil(distFt / 10) * 14}" aria-label="Conduit cost USD"></div>
+        <div class="bom-row" data-bom-id="breaker"><input type="checkbox" id="bom-chk-breaker"><label for="bom-chk-breaker">${amps}A Circuit Breaker + Weatherproof Disconnect / Subpanel</label><input class="bom-price-input" type="number" min="0" value="${amps >= 60 ? 145 : 42}" aria-label="Breaker cost USD"></div>
+        <div class="bom-row" data-bom-id="ground"><input type="checkbox" id="bom-chk-ground"><label for="bom-chk-ground">${rec.groundAwg} Equipment Ground Wire + Grounding Clamps / Noalox</label><input class="bom-price-input" type="number" min="0" value="38" aria-label="Grounding cost USD"></div>
+      </div>
+      <div class="bom-total-bar">
+        <span id="bom-progress-txt">0 / 4 Items Checked</span>
+        <span>Est. Project Total: <strong id="bom-grand-total">$0</strong></span>
       </div>
     </div>
   </section>`;
@@ -439,6 +473,7 @@ function renderLayout({ title, description, canonicalPath, breadcrumbs, schemaJs
           <a href="/breakers/200-amp-wire-size/">200A</a>
           <a href="/projects/48-amp-ev-charger-60-amp-breaker-wire-size/">EV Charger</a>
           <a href="/conduit-fill/how-many-6-awg-wires-in-3-4-inch-conduit/">Conduit Fill</a>
+          <button type="button" id="btn-open-binder" class="binder-btn" aria-label="Open saved circuits binder">📌 Binder (<span id="binder-count">0</span>)</button>
           <button type="button" id="theme-toggle-btn" class="theme-btn" aria-label="Switch color scheme">☾ Dark</button>
         </nav>
       </div>
@@ -454,6 +489,14 @@ function renderLayout({ title, description, canonicalPath, breadcrumbs, schemaJs
   <div class="layout-shell">
     <main id="main-content">
       ${mainContent}
+      <section class="sister-widget deferred-section" aria-label="Sister Engineering Calculators">
+        <h3 style="margin:0;font-size:0.95rem;">🔗 Complete Your Build — Sister Engineering Calculators</h3>
+        <div class="sister-grid">
+          <a class="sister-card" href="https://slabyardmatrix.com" rel="noopener"><strong>🧱 SlabYardMatrix.com</strong>Pouring a garage, RV pad, or shed slab? Calculate exact cubic yards, 80lb bags &amp; #4 rebar →</a>
+          <a class="sister-card" href="https://minisplitbtumatrix.com" rel="noopener"><strong>❄️ MiniSplitBTUMatrix.com</strong>Wiring a garage or shop mini-split? Size exact BTU, tonnage &amp; 230V breaker →</a>
+          <a class="sister-card" href="https://wattsurgematrix.com" rel="noopener"><strong>🔋 WattSurgeMatrix.com</strong>Backup power planning? Check appliance starting surge watts &amp; battery runtime →</a>
+        </div>
+      </section>
     </main>
 
     <aside class="ad-rail-sticky" aria-label="Sidebar Calculations & Sponsored Units">
@@ -498,6 +541,16 @@ function renderLayout({ title, description, canonicalPath, breadcrumbs, schemaJs
   </footer>
 
   ${renderAdUnit('anchor', 'bottom-sticky-anchor', 2)}
+
+  <div class="binder-backdrop" id="binder-backdrop"></div>
+  <aside class="binder-drawer" id="project-binder-drawer" aria-label="Saved Project Circuits Binder">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-block-end:2px solid var(--text);padding-block-end:0.6rem;margin-block-end:0.8rem;">
+      <strong style="font-family:var(--font-mono);font-size:0.95rem;">📌 My Saved Circuits Binder</strong>
+      <button type="button" id="btn-close-binder" class="theme-btn">✕ Close</button>
+    </div>
+    <p style="font-size:0.8rem;color:var(--text-muted);margin-block-start:0;">Saved locally in your browser so you can pull up your exact wire gauges &amp; shopping list at the hardware store.</p>
+    <div id="binder-items-list"></div>
+  </aside>
 
   <script defer src="/assets/${hashedJsFilename}"></script>
 </body>
