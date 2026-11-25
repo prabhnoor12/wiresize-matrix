@@ -431,6 +431,14 @@ function renderLayout({ title, description, canonicalPath, breadcrumbs, schemaJs
   <script>try{document.querySelector('meta[name="color-scheme"]').content=localStorage.getItem("color-scheme")??"light dark"}catch(e){}</script>
   <title>${title}</title>
   <meta name="description" content="${description}">
+  <meta name="application-name" content="${SITE_NAME}">
+  <meta property="og:site_name" content="${SITE_NAME}">
+  <meta property="og:title" content="${title}">
+  <meta property="og:description" content="${description}">
+  <meta property="og:url" content="${canonicalUrl}">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="manifest" href="/manifest.json">
   <link rel="canonical" href="${canonicalUrl}">
   <link rel="dns-prefetch" href="//securepubads.g.doubleclick.net">
   <link rel="dns-prefetch" href="//pagead2.googlesyndication.com">
@@ -687,8 +695,8 @@ function buildBreakerPages(sitemapUrls, totalPagesCount) {
     `;
 
     const html = renderLayout({
-      title: `${title} — Copper vs. Aluminum NEC 310.16 & Voltage Drop Calculator`,
-      description: `What size wire for a ${amps} amp breaker at ${distanceFt} feet? Verified NEC 310.16 copper (${rec.recommendedCuAwg} AWG) and aluminum (${rec.recommendedAlAwg} AWG) wire gauge chart, conduit size, and 3% voltage drop calculator.`,
+      title: `${title} [NEC 310.16 & 3% Drop Chart]`,
+      description: `Don't fail inspection on a ${amps}A breaker at ${distanceFt} ft! Compare 75°C THHN vs 60°C Romex NM-B limits, 3% voltage drop upsizing & aluminum cost savings →`,
       canonicalPath: `breakers/${slug}`,
       breadcrumbs: [
         { label: 'Home', url: '/' },
@@ -1192,6 +1200,16 @@ ${sitemapUrls.map((u) => `  <url><loc>${u}</loc><changefreq>monthly</changefreq>
 </urlset>`;
   fs.writeFileSync(path.join(DIST_DIR, 'sitemap.xml'), sitemapXml, 'utf8');
   fs.writeFileSync(path.join(DIST_DIR, 'robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${SITE_URL}/sitemap.xml\n`, 'utf8');
+  fs.writeFileSync(
+    path.join(DIST_DIR, 'favicon.svg'),
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#090d16"/><rect x="4" y="4" width="56" height="56" rx="10" fill="none" stroke="#d97706" stroke-width="3"/><text x="32" y="42" text-anchor="middle" fill="#fbbf24" font-family="monospace,sans-serif" font-size="24" font-weight="900">AWG</text></svg>',
+    'utf8'
+  );
+  fs.writeFileSync(
+    path.join(DIST_DIR, 'manifest.json'),
+    JSON.stringify({ name: 'WireSizeMatrix — NEC 310.16 Wire Gauge & Voltage Drop Calculator', short_name: 'WireSize', start_url: '/', display: 'standalone', background_color: '#090d16', theme_color: '#b45309', icons: [{ src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml' }] }, null, 2),
+    'utf8'
+  );
 
   fs.writeFileSync(
     path.join(DIST_DIR, 'wrangler.jsonc'),

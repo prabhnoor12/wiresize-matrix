@@ -1,0 +1,15 @@
+{
+  "name": "WireSizeMatrix — NEC 310.16 Wire Gauge & Voltage Drop Calculator",
+  "short_name": "WireSize",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090d16",
+  "theme_color": "#b45309",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
